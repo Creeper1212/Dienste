@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schuldienstplan</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts für modernes Design -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <header>
+        <div class="header-content">
+            <h1>Dienstplan 🧹</h1>
+            <div class="week-navigation">
+                <button id="prev-week-btn" class="nav-btn">← Vorherige</button>
+                <div class="date-display-container">
+                    <span id="date-display">Lade Datum...</span>
+                    <button id="today-btn" class="small-btn" title="Zurück zu Heute">Heute</button>
+                </div>
+                <button id="next-week-btn" class="nav-btn">Nächste →</button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Raster für die aktiven 6 Dienste -->
+        <div id="roster-grid" class="grid-container">
+            <!-- Karten werden hier dynamisch per JS eingefügt -->
+        </div>
+
+        <!-- Separater Bereich für die Pause/Reserve-Gruppe -->
+        <div id="pause-section" class="pause-container">
+            <h3>☕ Pause / Reserve</h3>
+            <div id="pause-list" class="pause-list">
+                <!-- Namen werden hier dynamisch eingefügt -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer mit Admin-Zugang -->
+    <footer>
+        <p class="rules-hint">ℹ️ Tippe auf eine Karte, um Details zu sehen.</p>
+        <button id="admin-toggle-btn" class="text-btn">Admin / Einstellungen</button>
+    </footer>
+
+    <!-- Admin Modal Overlay -->
+    <div id="admin-modal" class="modal hidden">
+        <div class="modal-content">
+            <span id="close-modal" class="close">&times;</span>
+            <h2>Admin Bereich 🔒</h2>
+            
+            <!-- Login Bereich -->
+            <div id="admin-login">
+                <input type="password" id="admin-password" placeholder="Passwort eingeben">
+                <button id="login-btn" class="primary-btn">Entsperren</button>
+            </div>
+
+            <!-- Admin Panel (versteckt bis Login erfolgreich) -->
+            <div id="admin-panel" class="hidden">
+                <div class="admin-section">
+                    <h3>Krankmeldung / Ersatz</h3>
+                    <p>Wähle einen Schüler, um ihn als krank zu markieren (Partner wird rot markiert).</p>
+                    <select id="student-selector">
+                        <option value="">Schüler auswählen...</option>
+                    </select>
+                    <button id="mark-sick-btn" class="warning-btn">Als krank melden</button>
+                </div>
+
+                <div class="admin-section">
+                    <h3>Datenverwaltung</h3>
+                    <p>Speichere den aktuellen Stand als Datei oder lade ein Backup.</p>
+                    <div class="backup-controls">
+                        <button id="download-backup-btn" class="secondary-btn">💾 Backup speichern (JSON)</button>
+                        <label for="upload-backup-input" class="secondary-btn upload-label">📂 Backup laden</label>
+                        <input type="file" id="upload-backup-input" accept=".json" style="display: none;">
+                    </div>
+                </div>
+
+                <div class="admin-section">
+                    <h3>System</h3>
+                    <button id="edit-students-btn" class="secondary-btn">Schülerliste bearbeiten</button>
+                    <button id="reset-app-btn" class="danger-btn">App komplett zurücksetzen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Students Modal (Initial Setup) -->
+    <div id="setup-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Schülerliste Einrichtung 📝</h2>
+            <p>Bitte gib die 24 Schülernamen ein (einer pro Zeile oder durch Komma getrennt).</p>
+            <textarea id="student-input-area" rows="10" placeholder="Max Mustermann&#10;Erika Musterfrau&#10;..."></textarea>
+            <div class="modal-actions">
+                <button id="load-default-btn" class="text-btn">Beispiel laden</button>
+                <button id="save-students-btn" class="primary-btn">Speichern & Starten</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>
