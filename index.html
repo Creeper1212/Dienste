@@ -2,104 +2,122 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Schuldienstplan</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Schul-Dienstplan App">
+    <title>Schuldienstplan 2026</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Google Fonts für modernes Design -->
+    <!-- Google Fonts: Inter für sauberen, modernen Look -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Favicon (Emoji als Icon) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧹</text></svg>">
 </head>
 <body>
 
+    <!-- KOPFZEILE MIT NAVIGATION -->
     <header>
         <div class="header-content">
             <h1>Dienstplan 🧹</h1>
             <div class="week-navigation">
-                <button id="prev-week-btn" class="nav-btn">← Vorherige</button>
+                <button id="prev-week-btn" class="nav-btn" title="Letzte Woche">←</button>
                 <div class="date-display-container">
                     <span id="date-display">Lade Datum...</span>
-                    <button id="today-btn" class="small-btn" title="Zurück zu Heute">Heute</button>
+                    <button id="today-btn" class="small-btn" title="Springt zum heutigen Datum oder Start">Zum Start / Heute</button>
                 </div>
-                <button id="next-week-btn" class="nav-btn">Nächste →</button>
+                <button id="next-week-btn" class="nav-btn" title="Nächste Woche">→</button>
             </div>
         </div>
     </header>
 
+    <!-- HAUPTINHALT -->
     <main>
-        <!-- Raster für die aktiven 6 Dienste -->
+        <!-- Raster für die 6 aktiven Dienste -->
         <div id="roster-grid" class="grid-container">
-            <!-- Karten werden hier dynamisch per JS eingefügt -->
+            <!-- Karten werden hier von main.js generiert -->
         </div>
 
-        <!-- Separater Bereich für die Pause/Reserve-Gruppe -->
+        <!-- Pause / Reserve Bereich -->
         <div id="pause-section" class="pause-container">
             <h3>☕ Pause / Reserve</h3>
             <div id="pause-list" class="pause-list">
-                <!-- Namen werden hier dynamisch eingefügt -->
+                <!-- Namen werden hier von main.js generiert -->
             </div>
         </div>
     </main>
 
-    <!-- Footer mit Admin-Zugang -->
+    <!-- FUSSZEILE -->
     <footer>
-        <p class="rules-hint">ℹ️ Tippe auf eine Karte, um Details zu sehen.</p>
-        <button id="admin-toggle-btn" class="text-btn">Admin / Einstellungen</button>
+        <button id="admin-toggle-btn" class="text-btn">⚙️ Einstellungen & Admin</button>
     </footer>
 
-    <!-- Admin Modal Overlay -->
+    <!-- ========================================= -->
+    <!-- MODALS (Fenster) -->
+    <!-- ========================================= -->
+
+    <!-- 1. ADMIN MODAL -->
     <div id="admin-modal" class="modal hidden">
         <div class="modal-content">
             <span id="close-modal" class="close">&times;</span>
             <h2>Admin Bereich 🔒</h2>
             
-            <!-- Login Bereich -->
+            <!-- Login -->
             <div id="admin-login">
-                <input type="password" id="admin-password" placeholder="Passwort eingeben">
+                <p>Bitte Passwort eingeben:</p>
+                <input type="password" id="admin-password" placeholder="Passwort...">
                 <button id="login-btn" class="primary-btn">Entsperren</button>
             </div>
 
-            <!-- Admin Panel (versteckt bis Login erfolgreich) -->
+            <!-- Admin Panel (nach Login sichtbar) -->
             <div id="admin-panel" class="hidden">
+                
+                <!-- Sektion: Krankmeldung -->
                 <div class="admin-section">
-                    <h3>Krankmeldung / Ersatz</h3>
-                    <p>Wähle einen Schüler, um ihn als krank zu markieren (Partner wird rot markiert).</p>
-                    <select id="student-selector">
-                        <option value="">Schüler auswählen...</option>
-                    </select>
-                    <button id="mark-sick-btn" class="warning-btn">Als krank melden</button>
-                </div>
-
-                <div class="admin-section">
-                    <h3>Datenverwaltung</h3>
-                    <p>Speichere den aktuellen Stand als Datei oder lade ein Backup.</p>
-                    <div class="backup-controls">
-                        <button id="download-backup-btn" class="secondary-btn">💾 Backup speichern (JSON)</button>
-                        <label for="upload-backup-input" class="secondary-btn upload-label">📂 Backup laden</label>
-                        <input type="file" id="upload-backup-input" accept=".json" style="display: none;">
+                    <h3>🤒 Krankmeldung</h3>
+                    <p class="small-text">Markiert Schüler rot & zeigt Ersatz an.</p>
+                    <div class="input-group">
+                        <select id="student-selector">
+                            <option value="">Schüler wählen...</option>
+                        </select>
+                        <button id="mark-sick-btn" class="warning-btn">Als krank melden</button>
                     </div>
                 </div>
 
+                <!-- Sektion: Daten -->
                 <div class="admin-section">
-                    <h3>System</h3>
-                    <button id="edit-students-btn" class="secondary-btn">Schülerliste bearbeiten</button>
-                    <button id="reset-app-btn" class="danger-btn">App komplett zurücksetzen</button>
+                    <h3>💾 Datenverwaltung</h3>
+                    <button id="download-backup-btn" class="secondary-btn">Backup speichern (JSON)</button>
+                    
+                    <label for="upload-backup-input" class="secondary-btn upload-label">Backup laden</label>
+                    <input type="file" id="upload-backup-input" accept=".json" style="display: none;">
+                </div>
+
+                <!-- Sektion: System -->
+                <div class="admin-section">
+                    <h3>⚠️ System</h3>
+                    <button id="edit-students-btn" class="secondary-btn">Namen bearbeiten</button>
+                    <button id="reset-app-btn" class="danger-btn">Alles löschen (Reset)</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Edit Students Modal (Initial Setup) -->
+    <!-- 2. SETUP MODAL (Einrichtung) -->
+    <!-- Wichtig: Keine 'close'-Taste, da Einrichtung zwingend ist -->
     <div id="setup-modal" class="modal hidden">
         <div class="modal-content">
-            <h2>Schülerliste Einrichtung 📝</h2>
-            <p>Bitte gib die 24 Schülernamen ein (einer pro Zeile oder durch Komma getrennt).</p>
+            <h2>Klasse einrichten 📝</h2>
+            <p>Willkommen! Bitte gib die Namen der Schüler ein, um den Dienstplan zu starten.</p>
+            <p class="small-text">Erforderlich: 24 Namen (einer pro Zeile).</p>
+            
             <textarea id="student-input-area" rows="10" placeholder="Max Mustermann&#10;Erika Musterfrau&#10;..."></textarea>
+            
             <div class="modal-actions">
-                <button id="load-default-btn" class="text-btn">Beispiel laden</button>
+                <button id="load-default-btn" class="secondary-btn">Beispiel laden</button>
                 <button id="save-students-btn" class="primary-btn">Speichern & Starten</button>
             </div>
         </div>
     </div>
 
+    <!-- JavaScript Einbindung -->
     <script type="module" src="main.js"></script>
 </body>
 </html>
