@@ -1,5 +1,5 @@
 /**
- * Hauptlogik für den Schuldienstplan (FIXED VERSION)
+ * Hauptlogik für den Schuldienstplan (REMAKE & FIXED)
  */
 
 // ==========================================
@@ -7,7 +7,7 @@
 // ==========================================
 
 const CONFIG = {
-    startDate: "2026-01-12",
+    startDate: "2026-01-12", // Der Plan startet hier
     endDate: "2026-07-02",
     adminHash: "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8", // "password"
     duties: [
@@ -18,7 +18,7 @@ const CONFIG = {
         { id: "handy", name: "Handy Hotel", icon: "📱", rule: "Handys morgens einsammeln & wegschließen.", dailyCheck: true },
         { id: "muell", name: "Müll", icon: "🗑️", rule: "Müll trennen & Eimer rausbringen." }
     ],
-    // Die Beispiel-Liste
+    // Feste Liste für "Beispiel laden"
     defaultStudents: [
         "Mia Müller", "Ben Schmidt", "Emma Schneider", "Lukas Fischer",
         "Sofia Weber", "Leon Meyer", "Hannah Wagner", "Finn Becker",
@@ -41,28 +41,35 @@ let state = {
 // ==========================================
 
 document.addEventListener("DOMContentLoaded", () => {
-    console.log("App gestartet...");
+    console.log("App wird initialisiert...");
     
-    // 1. Zuerst Buttons aktivieren (damit 'Beispiel laden' geht)
+    // 1. Buttons verbinden
     setupEventListeners();
     
-    // 2. Gespeicherte Daten laden
+    // 2. Daten laden
     loadState();
     
-    // 3. Prüfen: Brauchen wir das Setup?
+    // 3. Start-Logik
     if (!state.students || state.students.length === 0) {
-        console.log("Keine Schülerdaten. Öffne Setup...");
-        const setupModal = document.getElementById('setup-modal');
-        if (setupModal) {
-            setupModal.classList.remove('hidden');
-        }
+        // Zwinge Setup Modus
+        openSetupModal();
     } else {
+        // App Starten (Reisefieber Logik inklusive)
         initApp();
     }
 });
 
 function initApp() {
-    jumpToToday();
+    // "Reisefieber": Auch wenn wir 2025 haben, zeige Woche 1 (Offset 0)
+    jumpToStartOrToday();
+}
+
+function openSetupModal() {
+    const modal = document.getElementById('setup-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex'; // Zwingt Sichtbarkeit
+    }
 }
 
 // ==========================================
@@ -73,6 +80,7 @@ function getRosterForWeek(weekOffset) {
     const totalStudents = state.students.length;
     if (totalStudents === 0) return { assignments: [], pauseGroup: [] };
 
+    // Rotation: 2 Positionen pro Woche
     const shift = (weekOffset * 2) % totalStudents;
     let rotatedStudents = new Array(totalStudents);
 
@@ -121,80 +129,107 @@ function renderRoster() {
     if (!state.students || state.students.length === 0) return;
 
     const startDate = new Date(CONFIG.startDate);
+    
+    // Berechne Datum basierend auf Offset
     const currentDisplayDate = new Date(startDate);
     currentDisplayDate.setDate(startDate.getDate() + (state.currentWeekOffset * 7));
 
     const endDate = new Date(CONFIG.endDate);
+    
+    // Montag bis Freitag der angezeigten Woche
     const monday = new Date(currentDisplayDate);
     const friday = new Date(currentDisplayDate);
     friday.setDate(monday.getDate() + 4);
     
+    // Header Text
     const dateDisplay = document.getElementById('date-display');
     if (dateDisplay) {
-        dateDisplay.textContent = `${formatDate(monday)} - ${formatDate(friday)}`;
+        let label = `${formatDate(monday)} - ${formatDate(friday)}`;
+        
+        // Reisefieber-Check: Ist das die erste Woche und sind wir noch davor?
+        const now = new Date();
+        if (state.currentWeekOffset === 0 && now < startDate) {
+            label += " (Vorschau 🚀)";
+        }
+        
+        dateDisplay.textContent = label;
         dateDisplay.dataset.weekId = getWeekId(monday);
     }
 
-    // Navigation Buttons Update
+    // Navigation Buttons
     const prevBtn = document.getElementById('prev-week-btn');
     const nextBtn = document.getElementById('next-week-btn');
     if (prevBtn) prevBtn.disabled = monday <= startDate;
     if (nextBtn) nextBtn.disabled = friday >= endDate;
 
     const grid = document.getElementById('roster-grid');
-    if (grid) {
-        if (monday > endDate) {
-            grid.innerHTML = '<div class="duty-card"><h3>Dienstplan beendet! 🎉</h3></div>';
-            document.getElementById('pause-section').style.display = 'none';
-            return;
-        } else {
-            document.getElementById('pause-section').style.display = 'block';
+    if (!grid) return;
+
+    // Dienstplan zu Ende?
+    if (monday > endDate) {
+        grid.innerHTML = '<div class="duty-card"><h3>Schuljahr vorbei! Schöne Ferien! ☀️</h3></div>';
+        const pSec = document.getElementById('pause-section');
+        if(pSec) pSec.style.display = 'none';
+        return;
+    } else {
+        const pSec = document.getElementById('pause-section');
+        if(pSec) pSec.style.display = 'block';
+    }
+
+    // Karten generieren
+    const roster = getRosterForWeek(state.currentWeekOffset);
+    const weekId = getWeekId(monday);
+    grid.innerHTML = '';
+
+    roster.assignments.forEach(assign => {
+        const card = document.createElement('div');
+        card.className = 'duty-card animate-in';
+        card.dataset.duty = assign.duty.name;
+
+        const p1 = formatStudentHTML(assign.pair[0], weekId);
+        const p2 = formatStudentHTML(assign.pair[1], weekId);
+
+        // Checkboxen
+        let checkHtml = '';
+        if (assign.duty.hasCheck) {
+            const isChecked = state.checklist[`${weekId}-${assign.duty.id}`] || false;
+            checkHtml = `<label class="task-check ${isChecked ? 'completed' : ''}"><input type="checkbox" onchange="toggleCheck('${weekId}', '${assign.duty.id}', this)" ${isChecked ? 'checked' : ''}>${isChecked ? 'Erledigt' : 'Bestätigen'}</label>`;
         }
-
-        const roster = getRosterForWeek(state.currentWeekOffset);
-        const weekId = getWeekId(monday);
-        grid.innerHTML = '';
-
-        roster.assignments.forEach(assign => {
-            const card = document.createElement('div');
-            card.className = 'duty-card animate-in';
-            card.dataset.duty = assign.duty.name;
-
-            const p1 = formatStudentHTML(assign.pair[0], weekId);
-            const p2 = formatStudentHTML(assign.pair[1], weekId);
-            
-            let checkHtml = '';
-            // Checkbox Logik
-            if (assign.duty.hasCheck) {
-                const isChecked = state.checklist[`${weekId}-${assign.duty.id}`] || false;
-                checkHtml = `<label class="task-check ${isChecked ? 'completed' : ''}"><input type="checkbox" onchange="toggleCheck('${weekId}', '${assign.duty.id}', this)" ${isChecked ? 'checked' : ''}>${isChecked ? 'Dienste kontrolliert' : 'Kontrolle bestätigen'}</label>`;
-            }
-            if (assign.duty.dailyCheck) {
-                checkHtml += '<div style="display:flex; gap:5px; margin-top:10px; justify-content:center;">';
-                ['Mo', 'Di', 'Mi', 'Do', 'Fr'].forEach((day, idx) => {
-                    const key = `${weekId}-${assign.duty.id}-${idx}`;
-                    const isChecked = state.checklist[key] || false;
-                    checkHtml += `<label style="display:flex; flex-direction:column; font-size:0.7rem; align-items:center;">${day}<input type="checkbox" onchange="toggleCheck('${weekId}', '${assign.duty.id}-${idx}', this)" ${isChecked ? 'checked' : ''}></label>`;
-                });
-                checkHtml += '</div>';
-            }
-
-            card.innerHTML = `<div class="duty-icon">${assign.duty.icon}</div><div class="duty-title">${assign.duty.name}</div><div class="duty-rule">${assign.duty.rule}</div><div class="student-pair"><span class="student-name">${p1}</span><span class="student-name">${p2}</span></div>${checkHtml}`;
-            grid.appendChild(card);
-        });
-
-        const pauseList = document.getElementById('pause-list');
-        if (pauseList) {
-            pauseList.innerHTML = '';
-            roster.pauseGroup.forEach((student, index) => {
-                const span = document.createElement('span');
-                span.className = 'pause-name';
-                if (getSickEntry(student.name, weekId)) span.classList.add('sick-student');
-                span.textContent = student.name;
-                if (index < 2) span.title = "Nächste Woche: Tafel";
-                pauseList.appendChild(span);
+        if (assign.duty.dailyCheck) {
+            checkHtml += '<div style="display:flex; gap:5px; margin-top:10px; justify-content:center;">';
+            ['Mo', 'Di', 'Mi', 'Do', 'Fr'].forEach((day, idx) => {
+                const key = `${weekId}-${assign.duty.id}-${idx}`;
+                const isChecked = state.checklist[key] || false;
+                checkHtml += `<label style="display:flex; flex-direction:column; font-size:0.7rem; align-items:center;">${day}<input type="checkbox" onchange="toggleCheck('${weekId}', '${assign.duty.id}-${idx}', this)" ${isChecked ? 'checked' : ''}></label>`;
             });
+            checkHtml += '</div>';
         }
+
+        card.innerHTML = `
+            <div class="duty-icon">${assign.duty.icon}</div>
+            <div class="duty-title">${assign.duty.name}</div>
+            <div class="duty-rule">${assign.duty.rule}</div>
+            <div class="student-pair">
+                <span class="student-name">${p1}</span>
+                <span class="student-name">${p2}</span>
+            </div>
+            ${checkHtml}
+        `;
+        grid.appendChild(card);
+    });
+
+    // Pause Liste
+    const pauseList = document.getElementById('pause-list');
+    if (pauseList) {
+        pauseList.innerHTML = '';
+        roster.pauseGroup.forEach((student, index) => {
+            const span = document.createElement('span');
+            span.className = 'pause-name';
+            if (getSickEntry(student.name, weekId)) span.classList.add('sick-student');
+            span.textContent = student.name;
+            if (index < 2) span.title = "Nächste Woche: Tafel";
+            pauseList.appendChild(span);
+        });
     }
 }
 
@@ -202,7 +237,8 @@ function formatStudentHTML(studentObj, weekId) {
     if (!studentObj) return "???";
     const sickEntry = getSickEntry(studentObj.name, weekId);
     if (sickEntry) {
-        return `<span class="sick-student">${studentObj.name}</span>` + (sickEntry.replacement ? `<span class="sick-replacement">↳ Ersatz: ${sickEntry.replacement}</span>` : '');
+        return `<span class="sick-student">${studentObj.name}</span>` + 
+               (sickEntry.replacement ? `<span class="sick-replacement">↳ ${sickEntry.replacement}</span>` : '');
     }
     return studentObj.name;
 }
@@ -212,88 +248,87 @@ function formatDate(date) {
 }
 
 // ==========================================
-// 5. EVENT LISTENERS (HIER WAR DAS PROBLEM)
+// 5. EVENT LISTENER (DER FIX)
 // ==========================================
 
 function setupEventListeners() {
-    // 1. Beispiel laden Button
+    
+    // 1. BEISPIEL LADEN (Direkter Fix)
     const loadDefaultBtn = document.getElementById('load-default-btn');
     if (loadDefaultBtn) {
-        loadDefaultBtn.addEventListener('click', (e) => {
-            console.log("Beispiel laden geklickt");
+        // Wir entfernen alte Listener und setzen einen neuen
+        loadDefaultBtn.onclick = (e) => {
+            e.preventDefault();
+            console.log("Beispiel laden...");
             const textArea = document.getElementById('student-input-area');
             if (textArea) {
                 textArea.value = CONFIG.defaultStudents.join('\n');
-            } else {
-                alert("Fehler: Eingabefeld nicht gefunden.");
+                textArea.focus(); // Fokus setzen damit User es sieht
             }
-        });
+        };
+    } else {
+        console.error("Button load-default-btn nicht gefunden!");
     }
 
-    // 2. Speichern Button im Setup
+    // 2. SPEICHERN
     const saveStudentsBtn = document.getElementById('save-students-btn');
     if (saveStudentsBtn) {
-        saveStudentsBtn.addEventListener('click', () => {
-            console.log("Speichern geklickt");
+        saveStudentsBtn.onclick = (e) => {
+            e.preventDefault();
             saveStudentsFromInput();
-        });
+        };
     }
 
     // 3. Navigation
     const nextBtn = document.getElementById('next-week-btn');
     const prevBtn = document.getElementById('prev-week-btn');
     const todayBtn = document.getElementById('today-btn');
-    if (nextBtn) nextBtn.addEventListener('click', () => changeWeek(1));
-    if (prevBtn) prevBtn.addEventListener('click', () => changeWeek(-1));
-    if (todayBtn) todayBtn.addEventListener('click', jumpToToday);
+    if (nextBtn) nextBtn.onclick = () => changeWeek(1);
+    if (prevBtn) prevBtn.onclick = () => changeWeek(-1);
+    if (todayBtn) todayBtn.onclick = jumpToStartOrToday;
 
     // 4. Admin Toggle
     const adminToggle = document.getElementById('admin-toggle-btn');
     const adminModal = document.getElementById('admin-modal');
     const closeModal = document.getElementById('close-modal');
     if (adminToggle) {
-        adminToggle.addEventListener('click', () => {
+        adminToggle.onclick = () => {
             adminModal.classList.remove('hidden');
             document.getElementById('admin-login').style.display = 'block';
             document.getElementById('admin-panel').classList.add('hidden');
-        });
+        };
     }
     if (closeModal) {
-        closeModal.addEventListener('click', () => adminModal.classList.add('hidden'));
+        closeModal.onclick = () => adminModal.classList.add('hidden');
     }
 
-    // 5. Login
+    // Login & Actions
     const loginBtn = document.getElementById('login-btn');
-    if (loginBtn) loginBtn.addEventListener('click', handleLogin);
+    if (loginBtn) loginBtn.onclick = handleLogin;
 
-    // 6. Admin Aktionen
     const markSickBtn = document.getElementById('mark-sick-btn');
-    if (markSickBtn) markSickBtn.addEventListener('click', markStudentSick);
+    if (markSickBtn) markSickBtn.onclick = markStudentSick;
 
-    const editStudentsBtn = document.getElementById('edit-students-btn');
-    if (editStudentsBtn) {
-        editStudentsBtn.addEventListener('click', () => {
-            adminModal.classList.add('hidden');
-            const setupModal = document.getElementById('setup-modal');
-            if (setupModal) setupModal.classList.remove('hidden');
-            // Namen in Textarea laden
-            const names = state.students.map(s => s.name).join('\n');
-            document.getElementById('student-input-area').value = names;
-        });
-    }
+    const editBtn = document.getElementById('edit-students-btn');
+    if (editBtn) editBtn.onclick = () => {
+        adminModal.classList.add('hidden');
+        openSetupModal();
+        const names = state.students.map(s => s.name).join('\n');
+        document.getElementById('student-input-area').value = names;
+    };
 
-    const resetAppBtn = document.getElementById('reset-app-btn');
-    if (resetAppBtn) resetAppBtn.addEventListener('click', resetApp);
-    
+    const resetBtn = document.getElementById('reset-app-btn');
+    if (resetBtn) resetBtn.onclick = resetApp;
+
     const dlBtn = document.getElementById('download-backup-btn');
-    if (dlBtn) dlBtn.addEventListener('click', downloadBackup);
-    
+    if (dlBtn) dlBtn.onclick = downloadBackup;
+
     const upInput = document.getElementById('upload-backup-input');
-    if (upInput) upInput.addEventListener('change', uploadBackup);
+    if (upInput) upInput.onchange = uploadBackup;
 }
 
 // ==========================================
-// 6. HILFSFUNKTIONEN
+// 6. HELPER FUNKTIONEN
 // ==========================================
 
 function changeWeek(offset) {
@@ -301,11 +336,25 @@ function changeWeek(offset) {
     renderRoster();
 }
 
-function jumpToToday() {
+/**
+ * REISEFIEBER LOGIK:
+ * Wenn heute VOR Startdatum -> Gehe zu Woche 0 (Startdatum)
+ * Wenn heute NACH Startdatum -> Gehe zur aktuellen Woche
+ */
+function jumpToStartOrToday() {
     const start = new Date(CONFIG.startDate);
     const now = new Date();
-    const diffWeeks = Math.floor(Math.ceil(Math.abs(now - start) / (86400000)) / 7);
-    state.currentWeekOffset = (now < start) ? 0 : diffWeeks;
+
+    if (now < start) {
+        // Wir sind noch davor (z.B. 2025): Zeige Woche 0
+        state.currentWeekOffset = 0;
+    } else {
+        // Normaler Betrieb
+        const diffTime = Math.abs(now - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+        const diffWeeks = Math.floor(diffDays / 7);
+        state.currentWeekOffset = diffWeeks;
+    }
     renderRoster();
 }
 
@@ -313,43 +362,37 @@ window.toggleCheck = function(weekId, taskId, checkbox) {
     const key = `${weekId}-${taskId}`;
     state.checklist[key] = checkbox.checked;
     saveState();
-    const label = checkbox.parentElement;
-    if (label.classList.contains('task-check')) {
-        label.classList.toggle('completed', checkbox.checked);
-        label.childNodes[2].textContent = checkbox.checked ? " Dienste kontrolliert" : " Kontrolle bestätigen";
-    }
+    renderRoster(); // Refresh UI text
 };
 
 function saveStudentsFromInput() {
     const area = document.getElementById('student-input-area');
-    if (!area) return;
-    
     const text = area.value;
     const lines = text.split(/[\r\n,]+/).map(s => s.trim()).filter(s => s.length > 0);
 
     if (lines.length === 0) {
-        alert("Bitte gib mindestens einen Namen ein.");
+        alert("Bitte gib Namen ein.");
         return;
     }
-
+    // Warnung bei krummer Zahl, aber speichern erlauben
     if (lines.length !== 24) {
-        if (!confirm(`Du hast ${lines.length} Namen. Ideal sind 24. Trotzdem speichern?`)) return;
+        if (!confirm(`Du hast ${lines.length} Namen. Ideal sind 24. Fortfahren?`)) return;
     }
 
     state.students = lines.map((name, index) => ({ id: index, name: name }));
     state.currentWeekOffset = 0;
+    state.sickLog = {};
     saveState();
 
-    // Modal schließen mit CSS Klasse
+    // Modal schließen
     const modal = document.getElementById('setup-modal');
-    if (modal) {
-        modal.classList.add('hidden');
-    }
+    modal.classList.add('hidden');
+    modal.style.display = 'none'; // CSS Reset
     
     initApp();
 }
 
-// Admin & Backup (Gekürzt für Übersicht, Logik bleibt gleich)
+// Admin Funktionen
 async function handleLogin() {
     const pwd = document.getElementById('admin-password').value;
     const hash = await sha256(pwd);
@@ -357,12 +400,12 @@ async function handleLogin() {
         document.getElementById('admin-login').style.display = 'none';
         document.getElementById('admin-panel').classList.remove('hidden');
         populateStudentSelector();
-    } else { alert("Falsches Passwort!"); }
+    } else { alert("Falsch!"); }
 }
 
 function populateStudentSelector() {
     const select = document.getElementById('student-selector');
-    select.innerHTML = '<option value="">Schüler auswählen...</option>';
+    select.innerHTML = '<option value="">Wählen...</option>';
     state.students.forEach(s => {
         const opt = document.createElement('option');
         opt.value = s.name;
@@ -376,7 +419,7 @@ function markStudentSick() {
     if (!name) return;
     const weekId = document.getElementById('date-display').dataset.weekId;
     if (!state.sickLog[weekId]) state.sickLog[weekId] = [];
-    state.sickLog[weekId].push({ name, replacement: "Ersatz", date: new Date().toISOString() });
+    state.sickLog[weekId].push({ name, replacement: "Springer", date: new Date().toISOString() });
     saveState();
     renderRoster();
     alert("Gespeichert");
@@ -387,7 +430,7 @@ function getSickEntry(name, weekId) {
 }
 
 function resetApp() {
-    if (confirm("Wirklich alles löschen?")) {
+    if (confirm("Alles löschen?")) {
         localStorage.removeItem('dienstplanState');
         location.reload();
     }
@@ -408,8 +451,9 @@ function uploadBackup(event) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (e) => {
-        try { state = JSON.parse(e.target.result); saveState(); renderRoster(); alert("Backup geladen!"); } 
+        try { state = JSON.parse(e.target.result); saveState(); renderRoster(); alert("Geladen!"); } 
         catch(err) { alert("Fehler!"); }
+        event.target.value = '';
     };
     reader.readAsText(file);
 }
